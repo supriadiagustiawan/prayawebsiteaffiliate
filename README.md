@@ -1,93 +1,96 @@
-# Praya · katalog affiliate · versi 5
+# Praya — admin login dan katalog spreadsheet (v6)
 
-Paket ini disiapkan untuk repository GitHub yang dihubungkan ke Netlify. Website belum diterbitkan dan belum memiliki kredensial API Shopee.
+Katalog pengunjung berada di `/`. Login pengelola berada di `/login`, dan panel privat di `/admin`. HTML admin disimpan dalam modul server, bukan folder publik. API katalog privat, statistik, spreadsheet, dan penerbitan memeriksa sesi Netlify Identity dengan role `admin`. Kunci pemilik versi lama tidak lagi memberi akses.
 
-## Pasang melalui GitHub dan Netlify
+## 1. Deploy melalui GitHub dan Netlify
 
-1. Ekstrak `praya-github-netlify.zip`. Unggah **isi** paket ke root repository GitHub, sehingga `netlify.toml`, `package.json`, `public/`, dan `netlify/` berada pada tingkat yang sama. Jangan unggah ZIP sebagai satu file. Jangan unggah `node_modules`, `.env`, atau folder kerja lain.
-2. Pada Netlify, pilih **Add new project → Import an existing project → GitHub**, lalu pilih repository tersebut. Bila diminta, berikan akses hanya ke repository Praya.
-3. Base directory: kosong jika paket ada di root. Build command: `npm run build`. Publish directory: `public`. Direktori fungsi `netlify/functions` dan versi runtime sudah diatur dalam `netlify.toml`.
-4. Deploy. Halaman pengunjung ada di `/`; pengelolaan ada di `/kelola.html`. Katalog tetap bisa tampil sebelum API Shopee disetel.
-5. Untuk menerbitkan perubahan produk, setel kunci pemilik seperti langkah berikut. Website menggunakan Netlify Blobs untuk menyimpan katalog bersama. Katalog yang telah diterbitkan akan dipakai lagi setelah deploy berikutnya; mengganti seed dalam repository tidak menimpa isi Blobs.
+1. Ekstrak paket ini. Unggah isinya ke repository GitHub milik Anda, termasuk `netlify.toml`, `public`, `netlify`, `scripts`, `tests`, `package.json`, dan `pnpm-lock.yaml`. Jangan unggah `.env`, kunci Google, atau kredensial Shopee.
+2. Di Netlify pilih **Add new project → Import an existing project → GitHub**, lalu repository tersebut.
+3. Gunakan folder proyek ini sebagai base directory; jika repository hanya berisi proyek ini, base directory kosong. Build: `npm run build`. Publish: `public`. Fungsi di `netlify/functions` sudah diatur.
+4. Tunggu deploy HTTPS production selesai. Login sungguhan harus diuji pada deploy Netlify; preview lokal sengaja tidak menerima login atau menyediakan jalan pintas admin.
 
-Rujukan: [Netlify: deploy dari repository](https://docs.netlify.com/start/quickstarts/deploy-from-repository/), [GitHub: unggah file](https://docs.github.com/en/repositories/working-with-files/managing-files/adding-a-file-to-a-repository).
+## 2. Aktifkan akun admin satu kali
 
-## Mendapatkan akses API Shopee
+1. Pada proyek Netlify, buka **Identity → Enable Identity**.
+2. Buka **Registration → Registration preferences**, pilih **Invite only**. Website tidak menyediakan pendaftaran publik.
+3. Di **Identity → Users**, undang email Anda sendiri. Ini langkah yang Anda lakukan di dashboard; proyek tidak otomatis membuat atau mengundang akun.
+4. Pilih pengguna tersebut → **Edit settings → Roles** → tambahkan `admin`. Perubahan role berlaku pada login atau refresh token berikutnya. Jika akun belum terlihat sampai undangan diterima, terima undangan dahulu, tetapkan role di dashboard, lalu masuk kembali.
+5. Buka undangan dari email dan buat kata sandi sendiri. Tautan undangan pada beranda otomatis diarahkan ke `/login`; undangan dan pemulihan kata sandi ditangani melalui SDK resmi.
+6. Buka `https://DOMAIN-ANDA/login`. Setelah masuk sebagai admin, website membuka `/admin`.
+7. Untuk pemulihan, pilih pengguna di dashboard Identity → **Send reset password email**. Website mendukung token pemulihan tersebut.
 
-Izin diberikan oleh Shopee kepada akun affiliate pemilik. Izin filesystem Codex, repository GitHub, dan hosting Netlify tidak memberikan izin API Shopee.
+Sesi dikelola Netlify Identity. Kata sandi tidak disimpan dalam kode atau localStorage aplikasi. Role diperiksa server; menyembunyikan tombol bukan dasar keamanan. Ketika sesi berakhir, masuk kembali. Belum dilakukan uji login terhadap akun nyata karena proyek Netlify dan akun admin Anda belum terhubung.
 
-1. Masuk ke [portal Shopee Affiliate Indonesia](https://affiliate.shopee.co.id/) dengan akun affiliate Anda.
-2. Cari fitur **Open API/API** yang tersedia pada akun. Bila tersedia, ikuti pengajuan yang disediakan Shopee. Bila fitur tidak ada atau akses ditolak, hubungi bantuan Shopee Affiliate dari akun/aplikasi dan minta akses **Shopee Affiliate Open API**, terutama `productOfferV2`, untuk katalog Praya. Nama menu dan kelayakan akun Indonesia belum dapat dipastikan tanpa melihat akun Anda; tidak ada jaminan semua akun mendapat akses.
-3. Siapkan URL website Praya serta tujuan penggunaan: menampilkan nama produk, foto, harga, rating, dan angka penjualan dari tautan produk affiliate. Pengajuan dan persetujuan tetap dilakukan melalui Shopee. API Seller/Open Platform tidak otomatis menggantikan akses Affiliate Open API.
-4. Setelah disetujui dan memperoleh **App ID** serta **Secret**, simpan di pengaturan environment variables Netlify. Jangan menaruhnya dalam HTML, GitHub, atau chat. Kode sudah memakai penandatanganan permintaan dari fungsi server.
+Dokumentasi: [registrasi, undangan, dan CSRF](https://docs.netlify.com/manage/security/secure-access-to-sites/identity/registration-login/), [pengaturan role](https://docs.netlify.com/manage/security/secure-access-to-sites/identity/manage-existing-users/).
 
-[Explorer resmi Shopee](https://open-api.affiliate.shopee.co.id/explorer/v2) mendokumentasikan `productOfferV2`, termasuk `imageUrl`, `priceMin`, `priceMax`, `ratingStar`, dan `sales`. Explorer bukan tombol pemberian izin API. Field lain seperti stok varian, ongkir, dan seluruh ulasan tidak otomatis tersedia melalui query ini.
+## 3. Siapkan spreadsheet sebagai sumber katalog
 
-## Pengaturan Netlify
+1. Setelah masuk admin, pilih **Unduh format spreadsheet**. Format CSV memuat empat link affiliate yang sebelumnya Anda berikan, dengan status `sembunyi`; foto/harga/rating yang belum tersedia dibiarkan kosong.
+2. Buat Google Sheets. Pilih **File → Import → Upload** dan impor CSV tersebut. Beri nama tab **Produk**.
+3. Header baris pertama:
 
-Buat environment variables berikut agar tersedia pada **Functions** dalam konteks production, lalu deploy ulang. Atur juga pada deploy preview hanya jika Anda memang ingin mengizinkannya.
+```text
+kode,link_affiliate,status,kategori,nama,toko,foto,harga,rating,tanggal_cek,unggulan,acara,harga_awal,sumber_promo,cek_promo,promo_berakhir,sisa_stok
+```
 
-| Nama | Isi |
+| Kolom | Isi |
 | --- | --- |
-| `PRAYA_ADMIN_TOKEN` | Kunci pemilik acak, minimal 32 karakter; berbeda dari Secret Shopee |
-| `SHOPEE_APP_ID` | App ID yang diberikan Shopee Affiliate |
-| `SHOPEE_APP_SECRET` | Secret Shopee Affiliate |
-| `PRAYA_AUTO_SYNC` | Mulai dengan `false`; ubah ke `true` setelah pengambilan satu produk berhasil |
+| `link_affiliate` | Wajib. Link HTTPS Shopee asli; dipakai langsung sebagai tujuan CTA |
+| `kode` | Disarankan, misalnya W07. Huruf kapital, angka atau tanda hubung; maksimal 14 karakter. Jika kosong dibuat kode stabil dari link |
+| `status` | `aktif`, `sembunyi`, `habis`, `hapus`; kosong berarti aktif, tetapi produk belum lengkap akan ditahan tersembunyi |
+| `kategori` | Wanita, Pria, Couple, Sepatu, Tas, Aksesori, Lainnya |
+| `nama`, `toko`, `foto` | Lengkapi jika akses data Shopee belum tersedia. Foto berupa URL HTTPS yang dapat dibuka pengunjung |
+| `harga`, `rating` | Angka, misalnya 99000 dan 4.8; tanpa Rp atau pemisah ribuan. Rating harus memiliki tanggal_cek |
+| `tanggal_cek` | Tanggal verifikasi, format YYYY-MM-DD |
+| `unggulan` | `ya` untuk pilihan pada banner; penjualan dari API dipakai jika tersedia |
+| `acara` | Pisahkan dengan koma, misalnya Kuliah, Hangout |
+| `harga_awal` | Harga pembanding nyata yang lebih besar dari harga saat ini |
+| `sumber_promo`, `cek_promo` | URL sumber dan waktu cek untuk harga coret, promo, atau stok; contoh waktu `2026-10-17T10:00:00+08:00` |
+| `promo_berakhir` | Waktu berakhir dengan zona waktu, jika benar-benar diketahui |
+| `sisa_stok` | Bilangan bulat jika tersedia data stok yang diverifikasi |
 
-Nilai nyata tidak disimpan dalam paket. `.env.example` hanya mencantumkan nama variabel. Bila perlu membuat kunci pemilik, gunakan pengelola kata sandi untuk membuat nilai acak panjang dan simpan sebagai `PRAYA_ADMIN_TOKEN` di Netlify.
+Maksimal 1.000 produk. Jangan mengubah nama header. Ubah status ke `hapus` untuk menghapus secara terkendali; menghapus satu baris juga mengeluarkan produk dari website pada sinkronisasi berikutnya. Spreadsheet adalah sumber utama, sehingga sinkronisasi pertama mengganti daftar produk lama dengan daftar dalam spreadsheet. Spreadsheet kosong atau kesalahan baris membatalkan seluruh pembaruan dan mempertahankan katalog sebelumnya. Untuk mengosongkan katalog, gunakan status `hapus` pada semua baris.
 
-Rujukan: [environment variables Netlify](https://docs.netlify.com/build/environment-variables/overview/).
+Harga coret dan peringatan stok/promo hanya tampil jika sumber serta waktu cek valid dan masih segar (48 jam). Promo yang berakhir tidak ditampilkan sebagai promo aktif.
 
-## Mengelola dan memperbarui produk
+## 4. Hubungkan spreadsheet privat — disarankan
 
-1. Buka `/kelola.html`, pilih tombol Kelola. **Muat koleksi online** akan meminta kunci pemilik. Kunci hanya disimpan dalam memori tab, hilang ketika halaman dimuat ulang, dan dikirim ke fungsi Netlify milik situs ini untuk otorisasi.
-2. Pada perangkat baru tanpa draf lokal, login pertama memuat koleksi lengkap. Bila sudah ada draf lokal, pilih Muat koleksi online untuk menggantinya setelah konfirmasi. Ekspor cadangan lebih dulu bila draf masih dibutuhkan.
-3. Tambah/edit produk, tempel link affiliate, tandai sebagai tautan affiliate Anda. Saat API terhubung dan akses pemilik aktif, data bisa diambil otomatis setelah link ditempel, atau lewat **Ambil data dari Shopee**. Periksa hasil dan simpan.
-4. **Terbitkan perubahan** menyimpan koleksi di Netlify Blobs. Pengunjung melihat perubahan setelah membuka ulang halaman. Tombol Unduh katalog hanya membuat salinan HTML, tidak menerbitkan perubahan online.
-5. Bila koleksi telah berubah di server, penerbitan draf lama ditolak untuk menghindari penimpaan. Ekspor draf, muat koleksi online, lalu terapkan kembali perubahan yang masih diperlukan.
-6. Jika `PRAYA_AUTO_SYNC=true` dan kredensial valid, fungsi terjadwal mencoba memperbarui produk affiliate setiap enam jam pada production deploy. Di WITA: 02.00, 08.00, 14.00, 20.00. Produk tersembunyi tetap tersembunyi; API tidak mengaktifkannya sendiri. Produk di Sampah tidak diperbarui.
-7. Untuk katalog besar, pekerjaan dibagi dalam beberapa putaran dengan penanda posisi. Keberhasilan bergantung pada ketersediaan produk, batas API, jaringan, dan waktu eksekusi. Kegagalan satu produk mempertahankan data sebelumnya; pembaruan bukan jaminan data real-time.
+1. Di [Google Cloud Console](https://console.cloud.google.com/), pilih/buat proyek khusus Praya, lalu aktifkan **Google Sheets API**.
+2. Buka **IAM & Admin → Service Accounts**, buat service account untuk membaca katalog. Tidak perlu memberi role Owner/Editor pada proyek Google Cloud dan tidak perlu domain-wide delegation.
+3. Pada service account tersebut buka **Keys → Add key → Create new key → JSON**. Simpan kredensial di tempat aman. Jangan unggah file tersebut ke GitHub atau kirim melalui chat.
+4. Pada Google Sheets, pilih **Share** dan tambahkan email `client_email` milik service account sebagai **Viewer**. Spreadsheet tetap berstatus **Restricted**; hanya spreadsheet yang dibagikan ini yang dapat dibaca akun layanan tersebut.
+5. Di Netlify **Environment variables**, isi:
+   - `GOOGLE_SERVICE_ACCOUNT_EMAIL`: nilai `client_email`.
+   - `GOOGLE_PRIVATE_KEY`: nilai `private_key`, termasuk penanda BEGIN/END. Baris baru asli maupun bentuk literal `\n` didukung.
+6. Terapkan variabel untuk runtime Functions production, lalu deploy ulang sesuai alur Netlify.
+7. Masuk `/admin`, isi link Google Sheets normal, nama tab `Produk`, dan pilih **Privat · akses server**. **Simpan koneksi**, lalu **Sinkronkan sekarang**.
 
-Empat link affiliate Anda tersimpan sebagai draf pada seed server. Sebagian besar produk riset awal memakai tautan toko dan belum memiliki ID produk lengkap; tautan tersebut perlu diganti dengan tautan affiliate produk yang tepat agar dapat disinkronkan. Link affiliate asli tetap dipakai untuk CTA; integrasi ini tidak menggantinya dengan link dari API.
+Server hanya meminta scope `spreadsheets.readonly`; tidak mengubah atau menulis balik isi spreadsheet. Foto/harga/rating hasil Shopee disimpan dalam katalog website. Edit produk sehari-hari tetap dilakukan melalui spreadsheet yang sama.
 
-Bagian Paling laris diurutkan dari `sales` pada produk aktif dalam koleksi yang memiliki angka penjualan. Ini bukan peringkat seluruh Shopee atau bukti closing dari akun Praya. Selama angka penjualan belum tersedia, bagian tersebut memakai kurasi manual dengan keterangan yang terlihat. Daftar kurasi diatur melalui checkbox pada Edit produk.
+Dokumentasi: [service account Google](https://developers.google.com/identity/protocols/oauth2/service-account). Tidak ada kredensial Google di browser atau HTML publik.
 
-Rujukan: [Netlify Blobs](https://docs.netlify.com/build/data-and-storage/netlify-blobs/), [Scheduled Functions](https://docs.netlify.com/build/functions/scheduled-functions/).
+### Alternatif tanpa kredensial Google
 
-## Harga coret, promo, dan stok
+Jika tab produk memang boleh dibaca publik, atur file khusus katalog sebagai **Anyone with the link → Viewer**, kemudian pilih **Publik · Viewer** di panel admin. Gunakan file terpisah yang hanya berisi data katalog, tanpa data pribadi, komisi, atau laporan internal. Kode tidak mengubah izin berbagi Anda secara otomatis. Jika menggunakan mode privat, tidak perlu mengaktifkan berbagi publik.
 
-Editor produk memiliki kolom harga sebelum promo, sumber informasi, tanggal pemeriksaan, waktu akhir promo, dan stok yang tercatat. Harga coret harus lebih tinggi dari harga saat ini dan memiliki sumber serta tanggal cek. Gunakan harga untuk varian yang sama. Data ini belum diisi pada seed karena belum tersedia harga asal, stok, atau masa promo yang terverifikasi.
+## 5. Automasi website dan data Shopee
 
-Harga coret dan stok hanya ditampilkan dalam jendela pemeriksaan 48 jam. Promo yang waktunya sudah lewat tidak lagi menampilkan harga coret atau penanda waktu. Stok tercatat 0–5 diberi penanda; jumlahnya tidak dibuat otomatis. Pembaruan tampilan pengunjung setiap menit mengevaluasi kembali masa berlaku. Ini bukan penghitung waktu yang diulang untuk menciptakan kelangkaan.
+Alurnya: **Google Sheets → fungsi server terjadwal → penyimpanan katalog → website pengunjung**. Jadwal setiap 15 menit berjalan setelah deploy production Netlify. Tab pengunjung yang sedang terbuka memeriksa katalog setiap 60 detik; halaman baru membaca katalog online saat dibuka. Waktu tersebut merupakan jadwal pemeriksaan, bukan jaminan waktu selesai dari layanan eksternal.
 
-`priceMax` dari API merupakan harga maksimum produk dan tidak dipakai sebagai harga sebelum diskon. Integrasi meminta `priceDiscountRate` jika tersedia, tetapi tidak menebak harga asal dari angka tersebut. Harga asal yang valid bisa dimasukkan di admin.
+Tombol **Sinkronkan sekarang** menjalankan alur yang sama. Panel menunjukkan pembaruan terakhir dan produk yang perlu dilengkapi. Jika ada kegagalan jaringan, akses, baris tidak valid, atau konflik pembaruan, katalog terakhir tetap dipakai.
 
-## Banner bergerak
+Memasukkan link affiliate saja **tidak memberi akses otomatis ke seluruh detail Shopee**. Untuk mengambil foto, harga, dan rating melalui adapter resmi yang telah disiapkan, akses API Affiliate harus disetujui Shopee dan penawaran produk harus tersedia bagi akun Anda. Isi `SHOPEE_APP_ID` dan `SHOPEE_APP_SECRET` di environment Functions Netlify, bukan spreadsheet/chat. Setelah aktif, sinkronisasi mencoba memperkaya data melalui API. Maksimal beberapa produk diproses bersama dan ada batas waktu; koleksi besar bertahap pada jadwal berikutnya. Link CTA affiliate asli tetap dipertahankan.
 
-Banner menampilkan produk teratas dengan jeda baca sebelum bergeser dalam loop. Tombol Jeda gerak menghentikannya. Gerakan juga berhenti saat diarahkan/fokus pada banner atau tab tidak terlihat. Preferensi reduced motion mematikan animasi dan menyisakan daftar yang bisa digeser. Tidak ada klik Shopee otomatis.
+Jika API belum tersedia, isi nama, toko, foto, harga, dan rating yang benar di spreadsheet. Produk tanpa nama/toko/foto disimpan tersembunyi. Tidak ada foto, rating, penjualan, atau diskon rekaan. Tidak ada scraping yang melewati CAPTCHA. API belum diuji dengan kredensial nyata milik Anda.
 
-## Pengunjung, statistik, dan admin
+## 6. Statistik dan iklan
 
-`/` adalah halaman pengunjung. `/kelola.html` adalah halaman admin, dengan permintaan kunci pemilik untuk operasi server. Pada versi file mandiri, `praya-pengunjung.html` dan `praya-kelola.html` menyediakan preview masing-masing; statistik lintas perangkat baru tersedia setelah fungsi server dipasang di Netlify.
+Admin melihat tayangan, sesi perkiraan, klik Shopee, klik iklan, produk paling diklik, dan sumber UTM. Angka klik bukan jumlah pesanan atau laporan komisi Shopee. Sistem menghormati DNT/GPC dan pilihan pengunjung. Data laporan dibatasi 5.000 event per rentang untuk menjaga respons; jika batas tercapai panel menyatakan data sampel.
 
-Dashboard menampilkan tayangan halaman, sesi terukur, klik ke Shopee, klik sponsor, produk paling banyak diklik, dan sumber/kampanye untuk 7 atau 30 hari. Angka hanya mewakili event yang berhasil diterima, bukan pesanan atau komisi Shopee. Sesi memakai ID acak per tab dan diperbarui setelah 30 menit tanpa aktivitas; ini bukan jumlah orang unik yang terverifikasi. Admin tidak dihitung sebagai kunjungan publik.
+Produk dikelola hanya dari spreadsheet setelah terhubung. Slot iklan tetap diatur di admin, dengan label Iklan/Kerja sama. Pilih **Terbitkan pengaturan iklan** untuk menayangkannya. Data katalog dan statistik tersimpan pada Netlify Blobs. Tidak perlu redeploy untuk perubahan produk sehari-hari.
 
-Event dicatat sebagai rekaman terpisah di Netlify Blobs, bukan melalui counter read-modify-write. Event yang sama pada hari yang sama tidak dihitung ulang. Statistik dibatasi pada sampel maksimal 5.000 event per pemuatan dan menampilkan keterangan jika batas tercapai. Data historis tidak dihapus otomatis oleh paket ini. Untuk traffic besar, gunakan layanan analitik khusus atau rancangan agregasi terpisah.
+## Validasi dan batas yang tersisa
 
-Sistem tidak menyimpan alamat IP, email, atau identitas Shopee pada rekaman analitik. Hanya waktu, jenis event, kode produk, ID sesi yang di-hash, dan sumber kampanye. Browser dengan Do Not Track/Global Privacy Control serta pengunjung yang mematikan pengukuran melalui Informasi katalog tidak dicatat. Penyaringan bot dasar bukan jaminan penyaringan seluruh traffic otomatis.
+Uji otomatis meliputi penolakan akses tanpa sesi, role admin, penolakan kunci lama, validasi URL dan CSV, draf link saja, perubahan link, sinkronisasi status/penghapusan, pengayaan metadata dengan respons uji, kegagalan sinkronisasi, konflik, privasi statistik, dan aturan promo. Login nyata, email undangan, izin Google Sheets privat, API Shopee nyata, dan jadwal production harus diverifikasi setelah akun serta spreadsheet Anda dihubungkan. Preview lokal menolak login dengan pesan yang jelas dan tidak menyimulasikan keberhasilan login.
 
-Contoh tautan iklan masuk: `https://domain-praya-anda/?utm_source=instagram&utm_medium=paid_social&utm_campaign=outfit_oktober`. Untuk kunjungan tanpa UTM, hostname perujuk dipakai jika tersedia; sisanya ditandai tanpa UTM. Tidak ada Meta Pixel, Google Analytics, atau skrip iklan eksternal yang terpasang.
-
-## Slot sponsor
-
-Bagian Iklan & kerja sama di admin mengatur satu slot sponsor di bawah katalog: aktif/nonaktif, judul, deskripsi, gambar, CTA, dan link HTTPS. Simpan sebagai draf, lalu Terbitkan perubahan. Slot ditandai Iklan · Kerja sama dan tautannya memakai rel sponsored. Klik sponsor dicatat terpisah.
-
-Slot bawaan nonaktif. Tidak ada banner kosong pada halaman pengunjung. Ini dukungan sponsor langsung; Google AdSense atau jaringan iklan lain belum dihubungkan. Statistik dan slot sponsor tidak memerlukan akses API Shopee.
-
-## Desain dan pemeriksaan
-
-Grid Swiss yang ringkas, tanpa gradient atau jarak huruf dekoratif. Manrope dipakai untuk isi dan antarmuka; Marykate untuk tagline #PRAYAanstylemu! di awal dan akhir halaman. Logo transparan biru/putih mengikuti tema. Font disimpan lokal. Lisensi OFL Manrope disertakan; Marykate berasal dari berkas pengguna dan tidak disertai dokumen lisensi dalam lampiran.
-
-Pencarian kode, CTA langsung dengan area sentuh 44 px, logo, mode terang/gelap, validasi harga coret, tombol jeda, dashboard admin, dan layout diperiksa pada lebar 320, 390, 768, serta 1280 px. Alur login, penerbitan, dan pemisahan produk publik/draf diuji pada simulasi lokal penyimpanan server. Dua puluh tiga pemeriksaan fungsi lolos; entrypoint Netlify dan SDK dapat dimuat. Build lolos. Koneksi Netlify Blobs sungguhan, deploy Netlify, dan API Shopee sungguhan belum diuji karena akses akun dan kredensial belum tersedia.
-
-Perintah untuk pengembang: `pnpm install --frozen-lockfile`, `npm test`, `npm run build`, `npm run preview`. Preview lokal menggunakan penyimpanan sementara dalam memori; setel kunci pemilik pada `.env` lokal jika ingin menguji admin. `.env` tidak boleh diunggah ke GitHub. Runtime produksi diatur Node 22; pemeriksaan lokal dijalankan dengan runtime Node yang tersedia dalam workspace.
+Manrope disertakan dengan OFL. Marykate berasal dari berkas yang diberikan pemilik; pastikan lisensi publikasinya sesuai penggunaan website.

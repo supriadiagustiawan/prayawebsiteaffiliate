@@ -1,3 +1,4 @@
 User-agent: *
-Disallow: /kelola.html
+Disallow: /admin
+Disallow: /login
 Disallow: /api/admin/
