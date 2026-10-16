@@ -1,0 +1,25 @@
+[build]
+  command = "npm run build"
+  publish = "public"
+[build.environment]
+  NODE_VERSION = "22"
+  PNPM_VERSION = "11.25.0"
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/praya?route=:splat"
+  status = 200
+  force = true
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "DENY"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
