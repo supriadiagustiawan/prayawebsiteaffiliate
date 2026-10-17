@@ -1,9 +1,10 @@
 import {login,logout,getUser,acceptInvite,recoverPassword,confirmEmail,verifyRequestOrigin} from '@netlify/identity';
 import {isAdminUser,privateHeaders} from '../lib/auth.mjs';
+import {authAction} from '../lib/auth-route.mjs';
 const reply=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:privateHeaders('application/json')});
 export default async request=>{
  try {
-  const action=new URL(request.url).searchParams.get('action');
+  const action=authAction(request.url);
   if(action==='session'&&request.method==='GET'){
    const user=await getUser();return reply({authenticated:!!user,admin:isAdminUser(user)});
   }
